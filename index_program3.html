@@ -1,0 +1,193 @@
+<!-- Isaac Schwab -->
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+        <title>Programming Assignment 2</title>
+        <link rel="stylesheet" href="styles.css">
+        
+
+        <script id="2d-fragment-shader" type="x-shader/x-fragment">
+
+            precision mediump float;
+            uniform vec4 u_color;
+            void main() { 
+                gl_FragColor = u_color; 
+            }
+        </script>
+
+        <script id="2d-vertex-shader" type="x-shader/x-fragment">
+            
+            attribute vec2 a_position;
+ 
+            uniform vec2 u_resolution;
+             
+            void main() {
+            // convert the position from pixels to 0.0 to 1.0
+                vec2 zeroToOne = a_position / u_resolution;
+            
+                // convert from 0->1 to 0->2
+                vec2 zeroToTwo = zeroToOne * 2.0;
+             
+                // convert from 0->2 to -1->+1 (clipspace)
+                vec2 clipSpace = zeroToTwo - 1.0;
+             
+                gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+                gl_PointSize = 10.0;
+
+            }
+        </script>
+
+
+        <script id="vertex-shader" type="x-shader/x-vertex">
+
+        // assume both position and normal are in homogeneous form
+
+        attribute vec4 vPosition;
+        attribute vec4 vNormal;
+        attribute  vec2 vTexCoord;
+
+        varying vec4 fColor;
+        varying vec2 fTexCoord;
+
+        uniform vec4 ambientProduct, diffuseProduct, specularProduct;
+        uniform mat4 modelViewMatrix;
+        uniform mat4 projectionMatrix;
+        uniform vec4 lightPosition;
+        uniform float shininess;
+        uniform mat3 normalMatrix;
+
+        void
+        main()
+        {
+            
+            // pos is vertex position in eye coordinates
+            
+            vec3 pos = (modelViewMatrix * vPosition).xyz;
+            
+            // vector from vertex position to light source
+            
+            vec3 L;
+            
+            // check for directional light
+            
+            if(lightPosition.w == 0.0) L = normalize(lightPosition.xyz);
+            else L = normalize( lightPosition.xyz - pos );
+
+            // Because the eye point the is at the orgin
+            // the vector from the vertex position to the eye is
+                
+            vec3 E = -normalize( pos );
+            
+            // halfway vector
+            
+            vec3 H = normalize( L + E );
+
+            // Transform vertex normal into eye coordinates
+            
+            vec3 N = normalize( vNormal.xyz);
+
+
+            // Compute terms in the illumination equation
+            vec4 ambient = ambientProduct;
+
+            float Kd = max( dot(L, N), 0.0 );
+            vec4  diffuse = Kd*diffuseProduct;
+
+            float Ks = pow( max(dot(N, H), 0.0), shininess );
+            vec4  specular = Ks * specularProduct;
+            
+            if( dot(L, N) < 0.0 ) {
+            specular = vec4(0.0, 0.0, 0.0, 1.0);
+            } 
+
+            gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+            
+            fColor = ambient + diffuse +specular;
+            fTexCoord = vTexCoord;
+
+            fColor.a = 1.0;
+        }
+        </script>
+
+        <script id="fragment-shader" type="x-shader/x-fragment">
+
+        precision mediump float;
+
+        varying vec4 fColor;
+        varying  vec2 fTexCoord;
+
+        uniform sampler2D texture;
+
+        void
+        main()
+        {
+
+            gl_FragColor = fColor;
+        }
+        </script>
+
+        <script id="tex-fragment-shader" type="x-shader/x-fragment">
+
+        precision mediump float;
+
+        varying vec4 fColor;
+        varying  vec2 fTexCoord;
+
+        uniform sampler2D texture;
+
+        void
+        main()
+        {
+
+            gl_FragColor = fColor * texture2D(texture, fTexCoord);
+
+        }
+        </script>
+
+
+
+        <script type="text/javascript" src="webgl-utils.js"></script>
+        <script type="text/javascript" src="initShaders.js"></script>
+        <script type="text/javascript" src="MV.js"></script>
+        <script type="text/javascript" src="program3_script.js"></script>
+        
+    </head>
+
+    <body> 
+        <p> </p>
+        <p id="demo" style="text-align: center">Let's Get Started!</p>
+        <div class="dropdown">
+          <button onclick="openViewDropdown()" id="viewMenu" class="dropbtn">Menu</button>
+          <div id="viewDropdown" class="dropdown-content">
+            <a onclick="getAngles()">Angles</a>
+            <a onclick="getSteps()">Steps</a>
+            <a onclick="setPlastic()">Yellow Plastic</a>
+            <a onclick="setBrass()">Brass Metal</a>
+            <a onclick="setTexture()">Texture Map</a>
+            <a onclick="setupDraw()">Draw Mode</a>
+            <a onclick="quitMethod()">Quit</a>
+          </div>
+        </div>
+
+        <div class="dropdown">
+          <button onclick="openDrawDropdown()" id="drawMenu" class="dropbtn">Menu</button>
+          <div id="drawDropdown" class="dropdown-content">
+            <a onclick="setupView()">View Mode</a>
+            <a onclick="quitMethod()">Quit</a>
+          </div>
+        </div>
+        <p> </p>
+        <canvas id="gl-canvas" width="800" height="800">
+            Oops ... your browser doesn't support the HTML5 canvas element
+        </canvas>
+
+        <img id="tile-img" src="http://i.imgur.com/DsJDMHZ.png"crossorigin="anonymous" hidden="hidden" />
+        <img id="wood-img" src="http://2.bp.blogspot.com/-9CgzCc7O_T8/UmpPEs-RpBI/AAAAAAAAExo/18gtkMSsqWU/s1600/Tileable+marble+floor+tile+texture+(14).jpg"crossorigin="anonymous" hidden="hidden" />
+        <img id="rock-img" src="http://2.bp.blogspot.com/-tNkhbZGLh68/UmpPlZS1cwI/AAAAAAAAE3A/Qc2vbv_MHBg/s1600/Tileable+marble+floor+tile+texture.jpg"crossorigin="anonymous" hidden="hidden" />
+        <img id="brass-img" src="http://i.imgur.com/Mzrf98K.jpg"crossorigin="anonymous" hidden="hidden" />
+        <div>
+            FOV: <input id="fov" type="number" value="40" min="1" max="189"/>
+        </div>     
+    </body>
+</html>
